@@ -6,5 +6,9 @@
 
 meteor-platform
 iron:router
-mikamai:bitcore
 insecure
+meteorhacks:npm
+cosmos:browserify
+
+
+npm-container
