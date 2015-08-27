@@ -1,3 +1,10 @@
+Template.customer.onRendered(function() {
+  var Consumer = bitChannel.Consumer;
+  
+  
+
+})
+
 Template.messageList.helpers({
   messages: function () {
     var query = Messages.find({});
@@ -28,7 +35,5 @@ Template.newMessage.events({
     event.target.message.value = "";
   }
 });
-
-console.log(bitChannel);
 
 
