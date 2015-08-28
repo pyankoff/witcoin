@@ -1,18 +1,31 @@
-<template name="customer">
-  <p>Client</p>
-
-  {{> newMessage}}
-
-  {{> messageList}}
-
+<template name="createChannel">
+  <form class="new-channel">
+    <input type="text" name="address" placeholder="Your BTC address" />
+    <input type="text" name="name" placeholder="Your name" />
+    <button type="submit">Send</button>
+  </form>
 </template>
 
-<template name="provider">
-  <p>Provider</p>
+<template name="channel">
+  <p>This is channel <b>{{channelName}}</b></p>
 
-  {{> newMessage}}
+  {{#if isProvider}}
+    {{> newProviderMessage}}
+  {{else}}
+    {{> newClientMessage}}
+  {{/if}}
 
   {{> messageList}}
+</template>
+
+<template name="newProviderMessage">
+  <p>Provider</p>
+  {{> newMessage}}
+</template>
+
+<template name="newClientMessage">
+  <p>Client</p>
+  {{> newMessage}}
 </template>
 
 <template name="newMessage">
