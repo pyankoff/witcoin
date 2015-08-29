@@ -2,6 +2,6 @@ Meteor.publish('messages', function() {
   return Messages.find();
 });
 
-Meteor.publish('channels', function() {
-  return Channels.find();
+Meteor.publish('chats', function() {
+  return Chats.find();
 });

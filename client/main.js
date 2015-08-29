@@ -1,44 +1,172 @@
-Template.createChannel.events({
-  "submit .new-channel": function(event) {
-    event.preventDefault();
+var provider = null;
+var chat = null;
 
-    var channel = {
-          providerId: Random.id(),
-          providerAddress: event.target.address.value,
-          providerName: event.target.name.value
+function startMonitoring() {
+  var query = Messages.find({chatId: chat._id});
+
+  query.observeChanges({
+    added: function (id, message) {
+      if (message.messageToProvider) {
+        receivedRefund = message.messageToProvider;
+        console.log(receivedRefund);
+
+        var messageToConsumer = provider.signRefund(receivedRefund);
+
+        console.log(messageToConsumer);
+        var message = {chatId: chat._id, messageToConsumer: messageToConsumer.toJSON()}        
+
+        Meteor.call("sendMessage", message);
+      }
+    }
+  });
+};
+
+Template.provider.helpers({
+  noChat: function() {
+    return !Session.get("providerId");
+  },
+  chat: function() {
+    return chat;
+  }
+});
+
+
+
+Template.provider.events({
+  "submit .new-chat": function(e) {
+    e.preventDefault();
+
+    var providerAddress = 'mrS6NTGrcW8QT1g3caYupyQtxvk9WM2zim';//e.target.address.value;
+    var providerName = e.target.name.value;
+    
+    provider = new bitChannel.Provider({
+      network: 'testnet',
+      paymentAddress: providerAddress
+    });
+
+    var providerPublicKey = provider.getPublicKey().toJSON();
+    var providerId = Random.id();
+
+    chat = {
+      providerId: providerId,
+      providerAddress: providerAddress,
+      providerName: providerName,
+      providerPublicKey: providerPublicKey
     }
 
-    Session.set("providerId", channel.providerId);
+    Chats.insert(chat, function(error, result) {
+      chat = Chats.findOne(result);
+      Session.set("providerId", providerId);
+      startMonitoring();
+    });
+  },
+  "submit .new-message": function (e) {
+    e.preventDefault();
 
-    Meteor.call("createChannel", channel, 
-      function(error, result) {
-        if (!error) {
-          Router.go("channel", {_id: result._id, hii: "asdf"});
-        }
-      });
+    var message = {
+      chatId: chat._id,
+      text: e.target.message.value,
+      sender: this.providerName
+    }
+
+    Meteor.call("sendMessage", message);
+
+    e.target.message.value = "";
   }
 });
 
-Template.channel.helpers({
-  channelName: function() {
+
+
+
+
+
+Template.consumer.helpers({
+  chatName: function() {
     return this.providerName;
   },
-  isProvider: function() {
-    return this.providerId == Session.get('providerId');
+  noChannel: function() {
+    return !Session.get("channelSet");
+  },
+  fundingAddress: function() {
+    return Session.get("fundingAddress");
   }
 });
 
-Template.messageList.helpers({
+Template.consumer.onRendered(function() {
+  var PrivateKey = bitcore.PrivateKey;
+  var Consumer = bitChannel.Consumer;
+
+  var chatId = this.data._id;
+
+  var providerAddress = 'mrS6NTGrcW8QT1g3caYupyQtxvk9WM2zim';//this.providerAddress;
+
+  var fundingKey = new PrivateKey('b0031d5d5f081e73c2ffa3bbedc630aceb2d97c711dbf36dd9c1c5843566b130', 'testnet');
+  var commitmentKey = new PrivateKey('testnet');
+  
+  var refundAddress = 'mkAHsyhDGe9yA271RQ9rQSJVYbFtwx5HiE'; //make consumer
+
+  //need to get it from provider
+  var providerPublicKey = '034a6bb80afe3f12b843892c6715de6027be36247d9fb02bc29b7ef3703998e29c'
+
+  var consumer = new Consumer({
+    fundingKey: fundingKey,
+    refundAddress: refundAddress,
+    commitmentKey: commitmentKey,
+    providerPublicKey: providerPublicKey,
+    providerAddress: providerAddress
+  });
+
+  Session.set("fundingAddress", fundingKey.toAddress().toString());
+
+  var insight = new bitExplorers.Insight('testnet');
+
+  checkFunding();
+
+  function checkFunding() {
+    insight.getUnspentUtxos(consumer.fundingAddress, function(err, utxos) {
+      // console.log(utxos);
+      if (utxos.length > 0) {
+        consumer.processFunding(utxos)
+        // consumer.commitmentTx._updateChangeOutput();
+        console.log(consumer.commitmentTx.toJSON());
+
+        var messageToProvider = consumer.setupRefund().toJSON();
+        var message = {chatId: chatId, messageToProvider: messageToProvider}        
+
+        Meteor.call("sendMessage", message);
+      } else {
+        setTimeout(checkFunding, 10000);
+      }
+    });
+  }
+
+});
+
+Template.consumer.events({
+  "submit .new-message": function (e) {
+    e.preventDefault();
+
+    var message = {
+      chatId: this._id,
+      text: e.target.message.value,
+      sender: "makaka"
+    }
+
+    e.target.message.value = "";
+  }
+});
+
+
+Template.consumer.helpers({
   messages: function () {
-    console.log(this._id);
-    var query = Messages.find({channelId: this._id});
+    var query = Messages.find({chatId: this._id});
 
     var init = true;
 
     query.observeChanges({
       added: function (id, message) {
           if (!init) 
-            console.log(id);
+            console.log(message);
       }
     });
 
@@ -46,67 +174,4 @@ Template.messageList.helpers({
     return query;
   }
 });
-
-Template.newProviderMessage.events({
-  "submit .new-message": function (event) {
-    event.preventDefault();
-
-    var message = {
-      channelId: this._id,
-      text: event.target.message.value,
-      sender: this.providerName
-    }
-
-    Meteor.call("sendMessage", message);
-
-    event.target.message.value = "";
-  }
-});
-
-Template.newClientMessage.events({
-  "submit .new-message": function (event) {
-    event.preventDefault();
-
-    var message = {
-      channelId: this._id,
-      text: event.target.message.value,
-      sender: "makaka"
-    }
-
-    var insight = new bitExplorers.Insight('testnet');
-
-    var providerAddress = "mrS6NTGrcW8QT1g3caYupyQtxvk9WM2zim";//this.providerAddress;
-
-    var customerAddress = 'mkAHsyhDGe9yA271RQ9rQSJVYbFtwx5HiE'
-    var customerPrivate = 'a96511bd65dc4fbb0409bf3e51ac8e18853e05c6e133b1b1d78e1d34a995d1a7'
-
-    insight.getUnspentUtxos(customerAddress, function(err, utxos) {
-      if (!err) {
-        // console.log("utxos: ", utxos);
-
-        var transaction = new bitcore.Transaction()
-            .from(utxos)
-            .to(providerAddress, 100000)
-            .change(customerAddress)
-            .fee(1000)
-            .sign(customerPrivate);
-
-        insight.broadcast(transaction, function(err, txId) {
-          if (err) { 
-            console.log(err) 
-          } else { 
-            message.txId = txId;
-            Meteor.call("sendMessage", message);
-          } 
-        });
-
-      } else {
-        console.log(err);
-      } 
-    });
-
-    event.target.message.value = "";
-  }
-});
-
 

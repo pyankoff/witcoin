@@ -1,31 +1,33 @@
-<template name="createChannel">
-  <form class="new-channel">
-    <input type="text" name="address" placeholder="Your BTC address" />
-    <input type="text" name="name" placeholder="Your name" />
-    <button type="submit">Send</button>
-  </form>
+<template name="provider">
+    {{#if noChat}}
+    <form class="new-chat">
+      <input type="text" name="address" placeholder="Your BTC address" />
+      <input type="text" name="name" placeholder="Your name" />
+      <button type="submit">Create</button>
+    </form>
+    {{else}}
+      {{#with chat}}
+        <p>This is chat <b>{{chatName}}</b> you'll get money on <b>{{providerAddress}}</b></p>
+        <p>Send this link as an invite: <a href="{{pathFor 'consumer' _id=this._id}}">Link</a></p>
+
+        {{> messenger}}
+      {{/with}}
+    {{/if}}
 </template>
 
-<template name="channel">
-  <p>This is channel <b>{{channelName}}</b></p>
-
-  {{#if isProvider}}
-    {{> newProviderMessage}}
+<template name="consumer">
+  <p>This is chat <b>{{chatName}}</b></p>
+  {{#if noChannel}}
+    <p>Fund this wallet to start: <b>{{fundingAddress}}</b></p>
   {{else}}
-    {{> newClientMessage}}
+    {{> messenger}}
   {{/if}}
+</template>
+
+<template name="messenger">
+  {{> newMessage}}
 
   {{> messageList}}
-</template>
-
-<template name="newProviderMessage">
-  <p>Provider</p>
-  {{> newMessage}}
-</template>
-
-<template name="newClientMessage">
-  <p>Client</p>
-  {{> newMessage}}
 </template>
 
 <template name="newMessage">
